@@ -24,11 +24,12 @@ const PROB_FORK_DENSITY: f32 = 0.8;
 
 // const FORK_WIDTH_FACTOR: f32 = 0.8;
 
-const WIDTH_LENGTH_DISTR: f32 = 0.1;
+const WIDTH_LENGTH_DISTR: f32 = 0.2;
 
 // TODO: These should both derive from constant, that being the cell volume!
-const LENGTH_JUICE_FACTOR: f32 = 7.;
-const WIDTH_JUICE_FACTOR: f32 = 5.;
+const CELL_VOLUME_PER_JUICE: f32 = 1.;
+// const LENGTH_JUICE_FACTOR: f32 = 7.;
+// const WIDTH_JUICE_FACTOR: f32 = 5.;
 
 // const FORK_MAX_JUICE_FACTOR: f32 = 100.;
 
@@ -41,9 +42,14 @@ impl Branch {
             *juice -= j;
             let jl = (1. - WIDTH_LENGTH_DISTR) * j;
             let jw = WIDTH_LENGTH_DISTR * j;
-            self.width += (WIDTH_JUICE_FACTOR * jw + self.width * self.width).sqrt() - self.width;
+            if self.length > 0. {
+                self.width += ((CELL_VOLUME_PER_JUICE * jw) / (PI * self.length)
+                    + self.width * self.width)
+                    .sqrt()
+                    - self.width;
+            }
             if self.width > 0. {
-                self.length += LENGTH_JUICE_FACTOR * jl / (self.width * self.width);
+                self.length += (CELL_VOLUME_PER_JUICE * jl) / (PI * self.width * self.width);
             }
         }
 
@@ -58,7 +64,7 @@ impl Branch {
             // if dir.y < 0. && random::<f32>() < 0.5 {
             //     dir.y *= -1.
             // };
-            let leaf = random::<f32>() < dbg!(self.prob_leaf(dt, *juice));
+            let leaf = random::<f32>() < self.prob_leaf(dt, *juice);
             // let pos = self.pos + self.length * self.dir;
             self.subbranches.push(Branch {
                 // pos,
@@ -82,7 +88,6 @@ impl Branch {
         PROB_FORK_DENSITY
             * dt
             * if juice < 10. * dt * self.grow_rate {
-                // println!("!!");
                 0.01
             } else {
                 1.
@@ -107,10 +112,6 @@ impl Branch {
         let from = /* self.pos + */ offset;
         let dir = self.dir.rotate(dir);
         let to = from + self.length * dir;
-
-        // println!("from: {}\nto:   {}\ndir:  {}", from, to, dir);
-
-        // draw_circle(dir.x, dir.y, 4., RED);
 
         if self.leaf {
             draw_circle(to.x, to.y, 6., GREEN);
